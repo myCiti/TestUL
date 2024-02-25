@@ -55,9 +55,9 @@ except OSError:
     load_file(config_file)
 
 # define global variables
-stop_signal = False
-is_stopled_on = False
-is_running = False
+stop_signal:bool = False
+is_stopled_on:bool = False
+is_running:bool = False
 
 i2c = machine.I2C(0, sda = machine.Pin(4), scl=machine.Pin(5), freq = 400_000 )
 lcd = I2cLcd(i2c, 0x27, 4, 20)
@@ -77,15 +77,15 @@ def initialize () -> None:
     is_running = False
 
     for p in Output:
-        if p != 'Stop':
-            Output[p].value(0)
+        Output[p].low()
 
     for p in Input:
         Input[p]
 
     lcd.clear()
     lcd.write_line_center(f'WELCOME V{version}', 1)
-    time.sleep_ms(500)
+    lcd.write_line_center(f'OPEN/CLOSE TO START', 3)
+    time.sleep_ms(1500)
     lcd.clear()
     for line, (k, v) in enumerate(sorted(config['TIMERS'].items())):
         lcd.write_line('{0:<10}: {1:>3}'.format(k,v),line+1, 1)
@@ -97,7 +97,7 @@ def readPin(pin:str, delay:int = 50) -> bool:
     """Read value of a pin a number of times to determine good signal, delay in microseconds."""
 
     counter = 0
-    ntime = 0
+    ntime = 3
         
     if pin not in Input:
         return False
@@ -131,38 +131,63 @@ def count_down(duration:int):
     """Count down in second and display remaining time on LCD."""
     for i in range(duration, 0, -1):
         start = time.ticks_ms()
-        lcd.write_line(f'{i:>4}', 1, 17)
+        lcd.write_line(f'{i:<4}', 2,17)
         if stop_signal: break
         elapsed = time.ticks_diff(time.ticks_ms(), start)
         time.sleep_ms(1000 - elapsed)
 
-    lcd.write_line(f'{" ":>3}', 1, 17)
+    lcd.write_line(f'{"    ":<4}', 2, 17)
 
 def stop_signal_handler(pin):
     """"Send stop signal when detected with IRQ"""
     global stop_signal, is_stopled_on
-    if not is_stopled_on or readPin('Stop'):    # if Stop LED still on, do not turn it on again
+
+    if not is_stopled_on and readPin('Stop'):    # if Stop LED still on, do not turn it on again
         Output['Stop'].high()
         is_stopled_on = True
         Input['Stop'].irq(trigger=machine.Pin.IRQ_RISING, handler=None)
 
-    
     if is_stopled_on:
         elapsed = 0
         start = time.ticks_ms()
-        while readPin('Stop') or elapsed < 150:
-            time.sleep_ms(50)
+        while readPin('Stop') or elapsed < 5:
+            time.sleep_ms(10)
             elapsed = time.ticks_diff(time.ticks_ms(), start)
         Output['Stop'].low()
 
         is_stopled_on = False
         stop_signal = True
-        Input['Stop'].irq(trigger=machine.Pin.IRQ_RISING, handler=stop_signal)
+        Input['Stop'].irq(trigger=machine.Pin.IRQ_RISING, handler=stop_signal_handler)
 
 
 def main_logic_loop():
     """Core program - main logic loop"""
-    pass
+    global is_running 
+
+    is_running = True
+
+    lcd.clear()
+    while not stop_signal:
+        lcd.write_line_center(f'OPENNING...', 1)
+        lcd.write_line_center(f'WAITING....', 2)
+        writePin('Open')
+        count_down(config['TIMERS']['T1'])
+        lcd.write_line_center(f'TURN ON....', 2)
+        Output['O4'].high()
+        count_down(config['TIMERS']['T2'])
+        lcd.write_line_center(f'TURN OFF...', 2)
+        Output['O4'].low()
+        count_down(config['TIMERS']['T3'])
+        lcd.write_line_center(f'CLOSING....', 1)
+        lcd.write_line_center(f'WAITING....', 2)
+        writePin('Close')
+        count_down(config['TIMERS']['T1'])
+        lcd.write_line_center(f'TURN ON....', 2)
+        Output['O4'].high()
+        count_down(config['TIMERS']['T2'])
+        lcd.write_line_center(f'TURN OFF...', 2)
+        Output['O4'].low()
+        count_down(config['TIMERS']['T4'])
 
 #####
 menu = Menu(['TIMERS'], 4)
@@ -308,10 +333,10 @@ def main():
             elif rotary_encoder.select():
                 Configuration()
             
-            if stop_signal:
-                initialize()
+        if stop_signal:
+            initialize()
 
-            time.sleep_ms(50)
+        time.sleep_ms(50)
 
 if __name__ == '__main__':
     main()
