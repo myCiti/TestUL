@@ -112,7 +112,7 @@ def readPin(pin:str, delay:int = 50) -> bool:
 
     return False    
 
-def writePin(pin:str, delay:int=150):
+def writePin(pin:str, delay:int=500):
     """Write low/high value to a pin for a duration in milliseconds. 
        If still pressed, wait for a time.
     """
