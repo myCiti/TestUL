@@ -90,7 +90,6 @@ def initialize () -> None:
     for line, (k, v) in enumerate(sorted(config['TIMERS'].items())):
         lcd.write_line('{0:<10}: {1:>3}'.format(k,v),line+1, 1)
 
-
     gc.collect()
 
 def readPin(pin:str, delay:int = 50) -> bool:
@@ -126,6 +125,21 @@ def writePin(pin:str, delay:int=500):
         elapsed = time.ticks_diff(time.ticks_ms(), start)
 
     Output[pin].low()
+
+def turnPinOn(pin:str) -> None:
+    """Turn pin high value"""
+    if not stop_signal:
+        Output[pin].high()
+
+def turnPinOff(pin:str) -> None:
+    """Turn pin low value"""
+    if not stop_signal:
+        Output[pin].low()
+
+def write_line_center(msg: str, line:int) -> None:
+    """Write message to lcd at center of screen"""
+    if not stop_signal:
+        lcd.write_line_center(msg, line)
 
 def count_down(duration:int):
     """Count down in second and display remaining time on LCD."""
@@ -168,25 +182,25 @@ def main_logic_loop():
 
     lcd.clear()
     while not stop_signal:
-        lcd.write_line_center(f'OPENNING...', 1)
-        lcd.write_line_center(f'WAITING....', 2)
+        write_line_center(f'OPENNING...', 1)
+        write_line_center(f'WAITING....', 2)
         writePin('Open')
         count_down(config['TIMERS']['T1'])
-        lcd.write_line_center(f'TURN ON....', 2)
-        Output['O4'].high()
+        write_line_center(f'TURN ON....', 2)
+        turnPinOn('O4')
         count_down(config['TIMERS']['T2'])
-        lcd.write_line_center(f'TURN OFF...', 2)
-        Output['O4'].low()
+        write_line_center(f'TURN OFF...', 2)
+        turnPinOff('O4')
         count_down(config['TIMERS']['T3'])
-        lcd.write_line_center(f'CLOSING....', 1)
-        lcd.write_line_center(f'WAITING....', 2)
+        write_line_center(f'CLOSING....', 1)
+        write_line_center(f'WAITING....', 2)
         writePin('Close')
         count_down(config['TIMERS']['T1'])
-        lcd.write_line_center(f'TURN ON....', 2)
-        Output['O4'].high()
+        write_line_center(f'TURN ON....', 2)
+        turnPinOn('O4')
         count_down(config['TIMERS']['T2'])
-        lcd.write_line_center(f'TURN OFF...', 2)
-        Output['O4'].low()
+        write_line_center(f'TURN OFF...', 2)
+        turnPinOff('O4')
         count_down(config['TIMERS']['T4'])
 
 #####
