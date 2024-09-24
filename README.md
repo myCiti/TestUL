@@ -13,3 +13,5 @@
 - O4 = 0
 - Wait T4
 - Go to the first step
+
+THE END
